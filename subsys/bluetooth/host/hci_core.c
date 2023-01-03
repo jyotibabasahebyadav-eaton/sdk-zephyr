@@ -66,8 +66,9 @@ static struct k_thread rx_thread_data;
 static K_KERNEL_STACK_DEFINE(rx_thread_stack, CONFIG_BT_RX_STACK_SIZE);
 #endif
 static struct k_thread tx_thread_data;
+//static char abcdefg[100];
 static K_KERNEL_STACK_DEFINE(tx_thread_stack, CONFIG_BT_HCI_TX_STACK_SIZE);
-
+//static char abcdefg1[100];
 static void init_work(struct k_work *work);
 
 struct bt_dev bt_dev = {
@@ -2334,72 +2335,94 @@ static void hci_event(struct net_buf *buf)
 
 	net_buf_unref(buf);
 }
-
+uint32_t debugsend_cmd[20]={0};
 static void send_cmd(void)
 {
 	struct net_buf *buf;
 	int err;
-
+debugsend_cmd[0]++;
 	/* Get next command */
 	BT_DBG("calling net_buf_get");
+debugsend_cmd[1]++;
 	buf = net_buf_get(&bt_dev.cmd_tx_queue, K_NO_WAIT);
+debugsend_cmd[2]++;
 	BT_ASSERT(buf);
-
+debugsend_cmd[3]++;
 	/* Wait until ncmd > 0 */
 	BT_DBG("calling sem_take_wait");
 	k_sem_take(&bt_dev.ncmd_sem, K_FOREVER);
-
+debugsend_cmd[4]++;
 	/* Clear out any existing sent command */
 	if (bt_dev.sent_cmd) {
+debugsend_cmd[5]++;
 		BT_ERR("Uncleared pending sent_cmd");
 		net_buf_unref(bt_dev.sent_cmd);
 		bt_dev.sent_cmd = NULL;
+debugsend_cmd[6]++;
 	}
-
+debugsend_cmd[7]++;
 	bt_dev.sent_cmd = net_buf_ref(buf);
-
+debugsend_cmd[8]++;
 	BT_DBG("Sending command 0x%04x (buf %p) to driver",
 	       cmd(buf)->opcode, buf);
-
+debugsend_cmd[9]++;
 	err = bt_send(buf);
+debugsend_cmd[10]++;
 	if (err) {
+debugsend_cmd[11]++;
 		BT_ERR("Unable to send to driver (err %d)", err);
+debugsend_cmd[12]++;
 		k_sem_give(&bt_dev.ncmd_sem);
+debugsend_cmd[13]++;
 		hci_cmd_done(cmd(buf)->opcode, BT_HCI_ERR_UNSPECIFIED, buf);
+debugsend_cmd[14]++;
 		net_buf_unref(bt_dev.sent_cmd);
+debugsend_cmd[15]++;
 		bt_dev.sent_cmd = NULL;
+debugsend_cmd[16]++;
 		net_buf_unref(buf);
+debugsend_cmd[17]++;
 	}
 }
-
+uint32_t debugprocess_events[15]={0};
 static void process_events(struct k_poll_event *ev, int count)
 {
 	BT_DBG("count %d", count);
-
+        debugprocess_events[0]++;
 	for (; count; ev++, count--) {
 		BT_DBG("ev->state %u", ev->state);
-
+debugprocess_events[1]++;
 		switch (ev->state) {
 		case K_POLL_STATE_SIGNALED:
+debugprocess_events[2]++;
 			break;
 		case K_POLL_STATE_FIFO_DATA_AVAILABLE:
+debugprocess_events[3]++;
 			if (ev->tag == BT_EVENT_CMD_TX) {
+debugprocess_events[4]++;
 				send_cmd();
+debugprocess_events[5]++;
 			} else if (IS_ENABLED(CONFIG_BT_CONN) ||
 				   IS_ENABLED(CONFIG_BT_ISO)) {
 				struct bt_conn *conn;
-
+debugprocess_events[6]++;
 				if (ev->tag == BT_EVENT_CONN_TX_QUEUE) {
+debugprocess_events[7]++;
 					conn = CONTAINER_OF(ev->fifo,
 							    struct bt_conn,
 							    tx_queue);
+debugprocess_events[8]++;
 					bt_conn_process_tx(conn);
+debugprocess_events[9]++;
 				}
 			}
+debugprocess_events[10]++;
 			break;
 		case K_POLL_STATE_NOT_READY:
+debugprocess_events[11]++;
 			break;
 		default:
+debugprocess_events[12]++;
 			BT_WARN("Unexpected k_poll event state %u", ev->state);
 			break;
 		}
@@ -2423,7 +2446,7 @@ static void process_events(struct k_poll_event *ev, int count)
 #define EV_COUNT 1
 #endif /* CONFIG_BT_ISO */
 #endif /* CONFIG_BT_CONN */
-
+uint32_t debughci_tx[10] ={0};
 static void hci_tx_thread(void *p1, void *p2, void *p3)
 {
 	static struct k_poll_event events[EV_COUNT] = {
@@ -2436,26 +2459,30 @@ static void hci_tx_thread(void *p1, void *p2, void *p3)
 	BT_DBG("Started");
 
 	while (1) {
+		
 		int ev_count, err;
-
+debughci_tx[0]++;
 		events[0].state = K_POLL_STATE_NOT_READY;
 		ev_count = 1;
-
+debughci_tx[1]++;
 		if (IS_ENABLED(CONFIG_BT_CONN) || IS_ENABLED(CONFIG_BT_ISO)) {
+debughci_tx[2]++;
 			ev_count += bt_conn_prepare_events(&events[1]);
 		}
-
+debughci_tx[3]++;
 		BT_DBG("Calling k_poll with %d events", ev_count);
-
+debughci_tx[4]++;
 		err = k_poll(events, ev_count, K_FOREVER);
+debughci_tx[5]++;		
 		BT_ASSERT(err == 0);
-
+debughci_tx[6]++;
 		process_events(events, ev_count);
-
+debughci_tx[7]++;
 		/* Make sure we don't hog the CPU if there's all the time
 		 * some ready events.
 		 */
 		k_yield();
+debughci_tx[8];
 	}
 }
 
@@ -3323,18 +3350,26 @@ static int hci_init(void)
 
 	return 0;
 }
-
+ uint32_t debugbt_send[10]={0};
+struct net_buf *debugnet_buf ={0};
 int bt_send(struct net_buf *buf)
 {
+debugnet_buf = buf;
+if(buf == NULL)
+{
+ debugbt_send[5]++;
+}
 	BT_DBG("buf %p len %u type %u", buf, buf->len, bt_buf_get_type(buf));
-
+debugbt_send[0]++;
 	bt_monitor_send(bt_monitor_opcode(buf), buf->data, buf->len);
-
+debugbt_send[1]++;
 	if (IS_ENABLED(CONFIG_BT_TINYCRYPT_ECC)) {
+debugbt_send[2]++;
 		return bt_hci_ecc_send(buf);
 	}
-
+debugbt_send[3]++;
 	return bt_dev.drv->send(buf);
+debugbt_send[4]++;
 }
 
 static const struct event_handler prio_events[] = {
@@ -3356,26 +3391,33 @@ static const struct event_handler prio_events[] = {
 #endif /* CONFIG_BT_CONN_TX */
 };
 
+uint32_t debughci_event_prio[12] ={0};
 void hci_event_prio(struct net_buf *buf)
 {
 	struct net_buf_simple_state state;
 	struct bt_hci_evt_hdr *hdr;
 	uint8_t evt_flags;
-
+debughci_event_prio[0]++;
 	net_buf_simple_save(&buf->b, &state);
-
+debughci_event_prio[1]++;
 	BT_ASSERT(buf->len >= sizeof(*hdr));
-
+debughci_event_prio[2]++;
 	hdr = net_buf_pull_mem(buf, sizeof(*hdr));
+debughci_event_prio[3]++;
 	evt_flags = bt_hci_evt_get_flags(hdr->evt);
+debughci_event_prio[4]++;
 	BT_ASSERT(evt_flags & BT_HCI_EVT_FLAG_RECV_PRIO);
-
+debughci_event_prio[5]++;
 	handle_event(hdr->evt, buf, prio_events, ARRAY_SIZE(prio_events));
-
+debughci_event_prio[6]++;
 	if (evt_flags & BT_HCI_EVT_FLAG_RECV) {
+debughci_event_prio[7]++;
 		net_buf_simple_restore(&buf->b, &state);
+debughci_event_prio[8]++;
 	} else {
+debughci_event_prio[9]++;
 		net_buf_unref(buf);
+debughci_event_prio[10]++;
 	}
 }
 
@@ -3520,14 +3562,16 @@ static void init_work(struct k_work *work)
 	}
 }
 
+uint32_t debughci_rx_thread[5] = {0};
 #if !defined(CONFIG_BT_RECV_IS_RX_THREAD)
 static void hci_rx_thread(void)
 {
 	struct net_buf *buf;
 
 	BT_DBG("started");
-
+debughci_rx_thread[0]++;
 	while (1) {
+debughci_rx_thread[1]++;
 		BT_DBG("calling fifo_get_wait");
 		buf = net_buf_get(&bt_dev.rx_queue, K_FOREVER);
 
@@ -3557,7 +3601,9 @@ static void hci_rx_thread(void)
 		/* Make sure we don't hog the CPU if the rx_queue never
 		 * gets empty.
 		 */
+debughci_rx_thread[2]++;
 		k_yield();
+debughci_rx_thread[3]++;
 	}
 }
 #endif /* !CONFIG_BT_RECV_IS_RX_THREAD */

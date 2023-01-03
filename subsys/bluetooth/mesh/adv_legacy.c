@@ -35,7 +35,9 @@
 #define ADV_INT_FAST_MS    20
 
 static struct k_thread adv_thread_data;
-static K_KERNEL_STACK_DEFINE(adv_thread_stack, CONFIG_BT_MESH_ADV_STACK_SIZE);
+ K_KERNEL_STACK_DEFINE(adv_thread_stack1, 10);//RRD Added for debug
+ K_KERNEL_STACK_DEFINE(adv_thread_stack, CONFIG_BT_MESH_ADV_STACK_SIZE);
+ K_KERNEL_STACK_DEFINE(adv_thread_stack2, 10);//RRD Added for debug
 static int32_t adv_timeout;
 
 static inline void adv_send(struct net_buf *buf)
@@ -107,7 +109,9 @@ static inline void adv_send(struct net_buf *buf)
 		BT_ERR("Advertising failed: err %d", err);
 		return;
 	}
-
+	#ifdef CHAMP
+    BT_CHAMP_MSG(" S ");
+	#endif
 	BT_DBG("Advertising started. Sleeping %u ms", duration);
 
 	k_sleep(K_MSEC(duration));
@@ -120,45 +124,97 @@ static inline void adv_send(struct net_buf *buf)
 
 	BT_DBG("Advertising stopped (%u ms)", (uint32_t) k_uptime_delta(&time));
 }
-
+#define CHAMP
+#ifdef CHAMP
+int debugAdvertisement[13] = {0};//TODO Remove later
+#endif
+int32_t debuTimeout = 0;
+uint8_t debugstartnow = 0;
 static void adv_thread(void *p1, void *p2, void *p3)
 {
 	BT_DBG("started");
-
+	#ifdef CHAMP
+    debugAdvertisement[0]++;
+    adv_thread_stack1[0] = adv_thread_stack[1];
+    
+    if(debuTimeout == 1)
+    {
+         adv_thread_stack1[2] = adv_thread_stack2[1];
+    }
+    else if(debuTimeout= 2)
+    {
+      adv_thread_stack1[3] = adv_thread_stack2[2];
+    }
+    for(int i = 0 ; i < 16 ; i++)
+    {
+       adv_thread_stack1[i].data = 0xAB;
+       adv_thread_stack2[i].data = 0xAB;
+    }
+	#endif
 	while (1) {
 		struct net_buf *buf;
 
 		if (IS_ENABLED(CONFIG_BT_MESH_GATT_SERVER)) {
+			#ifdef CHAMP
+            debugAdvertisement[1]++;
+			#endif	
 			buf = bt_mesh_adv_buf_get(K_NO_WAIT);
+			#ifdef CHAMP
+            debugAdvertisement[2]++;
+			#endif
 			while (!buf) {
-
+				#ifdef CHAMP
+                debugAdvertisement[3]++;
+				#endif
 				/* Adv timeout may be set by a call from proxy
 				 * to bt_mesh_adv_gatt_start:
 				 */
 				adv_timeout = SYS_FOREVER_MS;
 				(void)bt_mesh_adv_gatt_send();
+             	#ifdef CHAMP
+                debugAdvertisement[4]++;
 
+                #endif
+debuTimeout = adv_timeout;
+debugstartnow = 1;
 				buf = bt_mesh_adv_buf_get(SYS_TIMEOUT_MS(adv_timeout));
+				#ifdef CHAMP
+                debugAdvertisement[5]++;
+				#endif
 				bt_le_adv_stop();
 			}
 		} else {
+			#ifdef CHAMP
+            debugAdvertisement[6]++;
+			#endif
 			buf = bt_mesh_adv_buf_get(K_FOREVER);
 		}
 
 		if (!buf) {
+			#ifdef CHAMP
+            debugAdvertisement[7]++;
+			#endif
 			continue;
 		}
-
+		#ifdef CHAMP
+        debugAdvertisement[8]++;
+		#endif
 		/* busy == 0 means this was canceled */
 		if (BT_MESH_ADV(buf)->busy) {
+			#ifdef CHAMP
+            debugAdvertisement[9]++;
+			#endif
 			BT_MESH_ADV(buf)->busy = 0U;
 			adv_send(buf);
 		}
-
+	    #ifdef CHAMP
+debugAdvertisement[10]++;
+		#endif
 		net_buf_unref(buf);
-
+ debugAdvertisement[11]++;
 		/* Give other threads a chance to run */
 		k_yield();
+ debugAdvertisement[12]++;
 	}
 }
 

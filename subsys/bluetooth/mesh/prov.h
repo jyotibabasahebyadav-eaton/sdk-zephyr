@@ -49,7 +49,9 @@
 #define PROV_DATA              0x07
 #define PROV_COMPLETE          0x08
 #define PROV_FAILED            0x09
-
+#ifdef CHAMP
+#define CHAMP_PROV_BLINK       PROV_FAILED+1
+#endif
 #define PROV_NO_PDU            0xff
 
 #define PDU_LEN_INVITE         1
@@ -101,7 +103,11 @@ struct bt_mesh_prov_role {
 
 	void (*input_complete)(void);
 
+     #ifdef CHAMP
+	   void (*op[CHAMP_PROV_BLINK+1])(const uint8_t *data);
+     #else
 	void (*op[10])(const uint8_t *data);
+     #endif
 };
 
 struct bt_mesh_prov_link {

@@ -724,25 +724,32 @@ int bt_conn_prepare_events(struct k_poll_event events[])
 
 	return ev_count;
 }
-
+uint32_t debugbt_conn_process_tx[15]={0};
 void bt_conn_process_tx(struct bt_conn *conn)
 {
 	struct net_buf *buf;
-
+debugbt_conn_process_tx[0]++;
 	BT_DBG("conn %p", conn);
 
 	if (conn->state == BT_CONN_DISCONNECTED &&
 	    atomic_test_and_clear_bit(conn->flags, BT_CONN_CLEANUP)) {
+debugbt_conn_process_tx[1]++;
 		BT_DBG("handle %u disconnected - cleaning up", conn->handle);
+debugbt_conn_process_tx[2]++;
 		conn_cleanup(conn);
+debugbt_conn_process_tx[3]++;
 		return;
 	}
-
+debugbt_conn_process_tx[4]++;
 	/* Get next ACL packet for connection */
 	buf = net_buf_get(&conn->tx_queue, K_NO_WAIT);
+debugbt_conn_process_tx[5]++;
 	BT_ASSERT(buf);
+debugbt_conn_process_tx[6]++;
 	if (!send_buf(conn, buf)) {
+debugbt_conn_process_tx[7]++;
 		net_buf_unref(buf);
+debugbt_conn_process_tx[8]++;
 	}
 }
 

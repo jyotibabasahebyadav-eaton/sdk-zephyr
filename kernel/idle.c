@@ -29,7 +29,7 @@ void z_pm_save_idle_exit(void)
 #endif	/* CONFIG_PM */
 	sys_clock_idle_exit();
 }
-
+uint32_t debug_idle[11]={0};
 void idle(void *unused1, void *unused2, void *unused3)
 {
 	ARG_UNUSED(unused1);
@@ -37,8 +37,9 @@ void idle(void *unused1, void *unused2, void *unused3)
 	ARG_UNUSED(unused3);
 
 	__ASSERT_NO_MSG(_current->base.prio >= 0);
-
+debug_idle[0]++;
 	while (true) {
+debug_idle[1]++;
 		/* SMP systems without a working IPI can't
 		 * actual enter an idle state, because they
 		 * can't be notified of scheduler changes
@@ -47,23 +48,26 @@ void idle(void *unused1, void *unused2, void *unused3)
 		 * a fallback configuration for new platform
 		 * bringup.
 		 */
+debug_idle[2]++;
 		if (IS_ENABLED(CONFIG_SMP) &&
 		    !IS_ENABLED(CONFIG_SCHED_IPI_SUPPORTED)) {
 			k_busy_wait(100);
 			k_yield();
+debug_idle[3]++;
 			continue;
 		}
-
+debug_idle[4]++;
 		/* Note weird API: k_cpu_idle() is called with local
 		 * CPU interrupts masked, and returns with them
 		 * unmasked.  It does not take a spinlock or other
 		 * higher level construct.
 		 */
+debug_idle[5]++;
 		(void) arch_irq_lock();
-
+debug_idle[6]++;
 #ifdef CONFIG_PM
 		_kernel.idle = z_get_next_timeout_expiry();
-
+debug_idle[7]++;
 		/*
 		 * Call the suspend hook function of the soc interface
 		 * to allow entry into a low power state. The function
@@ -79,13 +83,14 @@ void idle(void *unused1, void *unused2, void *unused3)
 		 * which is essential for the kernel's scheduling
 		 * logic.
 		 */
+debug_idle[8]++;
 		if (pm_system_suspend(_kernel.idle) == false) {
 			k_cpu_idle();
 		}
 #else
 		k_cpu_idle();
 #endif
-
+debug_idle[9]++;
 #if !defined(CONFIG_PREEMPT_ENABLED)
 # if !defined(CONFIG_USE_SWITCH) || defined(CONFIG_SPARC)
 		/* A legacy mess: the idle thread is by definition
@@ -102,5 +107,6 @@ void idle(void *unused1, void *unused2, void *unused3)
 		}
 # endif
 #endif
+debug_idle[10]++;
 	}
 }

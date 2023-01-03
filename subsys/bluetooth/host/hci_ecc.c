@@ -207,18 +207,25 @@ static void emulate_le_generate_dhkey(void)
 
 	bt_recv(buf);
 }
-
+uint32_t debugecc_thread[10] ={0};
 static void ecc_thread(void *p1, void *p2, void *p3)
 {
 	while (true) {
+debugecc_thread[0]++;
 		k_sem_take(&cmd_sem, K_FOREVER);
-
+debugecc_thread[1]++;
 		if (atomic_test_bit(flags, PENDING_PUB_KEY)) {
+debugecc_thread[2]++;
 			emulate_le_p256_public_key_cmd();
+debugecc_thread[3]++;
 		} else if (atomic_test_bit(flags, PENDING_DHKEY)) {
+debugecc_thread[4]++;
 			emulate_le_generate_dhkey();
+debugecc_thread[5]++;
 		} else {
+debugecc_thread[6]++;
 			__ASSERT(0, "Unhandled ECC command");
+debugecc_thread[7]++;
 		}
 	}
 }
@@ -308,32 +315,48 @@ static void le_p256_pub_key(struct net_buf *buf)
 	send_cmd_status(BT_HCI_OP_LE_P256_PUBLIC_KEY, status);
 }
 
+uint32_t debugbt_hci_ecc_send[20] = {0};
 int bt_hci_ecc_send(struct net_buf *buf)
 {
+debugbt_hci_ecc_send[0]++;
 	if (bt_buf_get_type(buf) == BT_BUF_CMD) {
+debugbt_hci_ecc_send[1]++;
 		struct bt_hci_cmd_hdr *chdr = (void *)buf->data;
 
 		switch (sys_le16_to_cpu(chdr->opcode)) {
+debugbt_hci_ecc_send[2]++;
 		case BT_HCI_OP_LE_P256_PUBLIC_KEY:
+debugbt_hci_ecc_send[3]++;
 			net_buf_pull(buf, sizeof(*chdr));
+debugbt_hci_ecc_send[4]++;
 			le_p256_pub_key(buf);
+debugbt_hci_ecc_send[5]++;
 			return 0;
 		case BT_HCI_OP_LE_GENERATE_DHKEY:
+debugbt_hci_ecc_send[6]++;
 			net_buf_pull(buf, sizeof(*chdr));
+debugbt_hci_ecc_send[7]++;
 			le_gen_dhkey_v1(buf);
+debugbt_hci_ecc_send[8]++;
 			return 0;
 		case BT_HCI_OP_LE_GENERATE_DHKEY_V2:
+debugbt_hci_ecc_send[9]++;
 			net_buf_pull(buf, sizeof(*chdr));
+debugbt_hci_ecc_send[10]++;
 			le_gen_dhkey_v2(buf);
+debugbt_hci_ecc_send[11]++;
 			return 0;
 		case BT_HCI_OP_LE_SET_EVENT_MASK:
+debugbt_hci_ecc_send[12]++;
 			clear_ecc_events(buf);
+debugbt_hci_ecc_send[13]++;
 			break;
 		default:
+debugbt_hci_ecc_send[14]++;
 			break;
 		}
 	}
-
+debugbt_hci_ecc_send[15]++;
 	return bt_dev.drv->send(buf);
 }
 

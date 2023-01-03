@@ -18,6 +18,7 @@
 
 #include "hci_core.h"
 #include "settings.h"
+#include "stdio.h"
 
 #if defined(CONFIG_BT_SETTINGS_USE_PRINTK)
 void bt_settings_encode_key(char *path, size_t path_size, const char *subsys,
@@ -237,7 +238,69 @@ static int commit(void)
 
 #if defined(CONFIG_BT_DEVICE_NAME_DYNAMIC)
 	if (bt_dev.name[0] == '\0') {
-		bt_set_name(CONFIG_BT_DEVICE_NAME);
+		#if MAC_TEST 
+		uint8_t u8ArrDevName[32] = { '\0' };
+		
+		/* MAC ID Test */
+		uint8_t packet[6];
+		packet[0] = NRF_FICR->DEVICEADDR[0];
+		packet[1] = NRF_FICR->DEVICEADDR[0] >> 8;
+		packet[2] = NRF_FICR->DEVICEADDR[0] >> 16;
+		packet[3] = NRF_FICR->DEVICEADDR[0] >> 24;
+		packet[4] = NRF_FICR->DEVICEADDR[1];
+		packet[5] = (NRF_FICR->DEVICEADDR[1] >> 8) | 0xC0; /* 6th and 7th bit set as per nR52833 Forum */
+
+		for (int i = 5; i >= 0; --i) {
+			sprintf((char *)&u8ArrDevName[(5 - i) * 3], "%02X:", (char *)packet[i]);
+		}
+		bt_set_name((char *)u8ArrDevName);
+		//sprintf((char*)u8ArrDevName, "Champ2.0 NS %c", 0xDF);
+
+		//bt_set_name((char*)u8ArrDevName);
+		#endif
+#if 0
+		int8_t i8Index = eMAC_INDEX_0;
+		uint8_t u8DeviceType = '1'; /* todo [NS][04Oct2022] - To get it from EEPROM at the time of EOLT */
+		
+		uint8_t u8IDChar = 0;
+		int8_t i8Temp = 0;
+		int8_t i8Iterator = 0;
+		uint8_t u8ArrPacket[eMAC_SIZE] = {'\0'}; 
+		uint8_t u8ArrMACID[eMAC_SIZE]  = {'\0'};	/* Copy device MAC ID here */
+		int8_t i8ConstStringFromHashCopy[25] = {0};
+		
+		/** Read MAC ID and fill in the buffer u8ArrMACID **/
+		u8ArrPacket[0] = NRF_FICR->DEVICEADDR[0];
+		u8ArrPacket[1] = NRF_FICR->DEVICEADDR[0] >> 8;
+		u8ArrPacket[2] = NRF_FICR->DEVICEADDR[0] >> 16;
+		u8ArrPacket[3] = NRF_FICR->DEVICEADDR[0] >> 24;
+		u8ArrPacket[4] = NRF_FICR->DEVICEADDR[1];
+		u8ArrPacket[5] = (NRF_FICR->DEVICEADDR[1] >> 8) | 0xC0; /* 6th and 7th bit set as per nR52833 Forum */
+
+		for (i8Index = eMAC_INDEX_5; i8Index >= 0; i8Index--) 
+		{
+		 	u8ArrMACID[eMAC_INDEX_5 - i8Index] = u8ArrPacket[i8Index];
+		}
+
+		/** Build Random Encrypted String of 29 bytes **/
+		RandomEncryptedString strRandomEncryptedString;
+		strRandomEncryptedString.u8UIDUpper    = ASCII_UID(u8ArrMACID[eMAC_INDEX_0]); /* UID Upper - 1 Byte */
+		strRandomEncryptedString.u8UIDLower[0] = ASCII_UID(u8ArrMACID[eMAC_INDEX_1]); /* UID Lower - 2 Byte */
+		strRandomEncryptedString.u8UIDLower[1] = ASCII_UID(u8ArrMACID[eMAC_INDEX_5]);
+		strRandomEncryptedString.u8IDChar 	   = ID_CHAR(u8ArrMACID[eMAC_INDEX_3] ,u8ArrMACID[eMAC_INDEX_5]); /* Identification Char - 1 Byte */
+		strRandomEncryptedString.u8DeviceType  = u8DeviceType; /* Device Type - 1 Byte */
+
+		/** CC2 Reshuffling logic **/	
+		u8IDChar = strRandomEncryptedString.u8IDChar & 0x0F;
+		EncryptChampConnected2Hash(u8IDChar, i8ConstStringFromHashCopy);
+
+		memcpy(&strRandomEncryptedString.u8CC2String[0], &i8ConstStringFromHashCopy[0], sizeof(strRandomEncryptedString.u8CC2String));
+		
+		/* Set Bluetooth Name */
+		bt_set_name((char*)&strRandomEncryptedString);
+#endif
+	bt_set_name((char*)"Champ MVP2 Test 1V23");
+
 	}
 #endif
 	if (!bt_dev.id_count) {
@@ -286,4 +349,35 @@ int bt_settings_init(void)
 	}
 
 	return 0;
+}
+void EncryptChampConnected2Hash(uint8_t u8IDChar, int8_t *const i8ConstStringFromHashCopy)
+{
+	int8_t i8Index = eMAC_INDEX_0;
+	int8_t i8Temp = 0;
+	int8_t i8Iterator = 0;
+	const int8_t i8ConstStringFromHash[] = "SYnRoZXaLm1Dc5T5WpDnQg==";
+	int8_t i8Size = sizeof(i8ConstStringFromHash)-1;
+	if(u8IDChar > 0x07 && u8IDChar < 0x0F)
+	{
+		u8IDChar = ~u8IDChar;
+		u8IDChar &= 0x0F;
+	}
+	else if (u8IDChar == 0x00 || u8IDChar == 0xFF)
+	{
+		u8IDChar = 0x01;
+	}
+	i8Iterator = (i8Size - (u8IDChar*2))/2;
+	memcpy(i8ConstStringFromHashCopy, i8ConstStringFromHash, i8Size);
+	for(i8Index = 0; i8Index < u8IDChar; i8Index++)
+	{
+		i8Temp = i8ConstStringFromHashCopy[i8Index];
+		i8ConstStringFromHashCopy[i8Index] = i8ConstStringFromHashCopy[i8Index+u8IDChar];
+		i8ConstStringFromHashCopy[i8Index+u8IDChar] = i8Temp;
+	}
+	for(i8Index = (u8IDChar*2); i8Index < (i8Size-i8Iterator); i8Index++)
+	{
+		i8Temp = i8ConstStringFromHashCopy[i8Index];
+		i8ConstStringFromHashCopy[i8Index] = i8ConstStringFromHashCopy[i8Index+i8Iterator];
+		i8ConstStringFromHashCopy[i8Index+i8Iterator] = i8Temp;		
+	}
 }

@@ -64,6 +64,9 @@ static struct bt_mesh_adv *adv_alloc(int id)
 	return &adv_pool[id];
 }
 
+#ifdef CHAMP
+extern uint32_t ChampWatchdogForAdvertisment;
+#endif
 static struct net_buf *bt_mesh_adv_create_from_pool(struct net_buf_pool *pool,
 						    bt_mesh_adv_alloc_t get_id,
 						    enum bt_mesh_adv_type type,
@@ -75,11 +78,23 @@ static struct net_buf *bt_mesh_adv_create_from_pool(struct net_buf_pool *pool,
 
 	if (atomic_test_bit(bt_mesh.flags, BT_MESH_SUSPENDED)) {
 		BT_WARN("Refusing to allocate buffer while suspended");
+        #ifdef CHAMP
+        if(buf == 0)
+        {
+           ChampWatchdogForAdvertisment =1;;
+        }
+        #endif
 		return NULL;
 	}
 
 	buf = net_buf_alloc(pool, timeout);
 	if (!buf) {
+        #ifdef CHAMP
+        if(buf == 0)
+        {
+        ChampWatchdogForAdvertisment =2;;
+        }
+        #endif
 		return NULL;
 	}
 
@@ -91,7 +106,12 @@ static struct net_buf *bt_mesh_adv_create_from_pool(struct net_buf_pool *pool,
 	adv->type         = type;
 	adv->tag          = tag;
 	adv->xmit         = xmit;
-
+    #ifdef CHAMP
+    if(buf == 0)
+    {
+       ChampWatchdogForAdvertisment =3;
+    }
+    #endif
 	return buf;
 }
 

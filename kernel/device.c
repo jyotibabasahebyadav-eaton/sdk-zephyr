@@ -52,6 +52,7 @@ void z_device_state_init(void)
  *
  * @param level init level to run.
  */
+ uint32_t delay[2] = {0};
 void z_sys_init_run_level(int32_t level)
 {
 	static const struct init_entry *levels[] = {
@@ -66,11 +67,17 @@ void z_sys_init_run_level(int32_t level)
 		__init_end,
 	};
 	const struct init_entry *entry;
-
+   for(delay[0] = 0; delay[0] <1500000 ;delay[0]++)
+        { 
+            delay[1]++;
+        }
 	for (entry = levels[level]; entry < levels[level+1]; entry++) {
 		const struct device *dev = entry->dev;
 		int rc = entry->init(dev);
-
+        for(delay[0] = 0; delay[0] <1500000 ;delay[0]++)
+        { 
+            delay[1]++;
+        }
 		if (dev != NULL) {
 			/* Mark device initialized.  If initialization
 			 * failed, record the error condition.

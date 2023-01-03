@@ -333,7 +333,11 @@ bool bt_mesh_prov_active(void)
 static void prov_recv(const struct prov_bearer *bearer, void *cb_data,
 		      struct net_buf_simple *buf)
 {
+#ifdef CHAMP
+	static const uint8_t op_len[11] = {
+#else	
 	static const uint8_t op_len[10] = {
+#endif	
 		[PROV_INVITE]         = PDU_LEN_INVITE,
 		[PROV_CAPABILITIES]   = PDU_LEN_CAPABILITIES,
 		[PROV_START]          = PDU_LEN_START,
@@ -344,6 +348,9 @@ static void prov_recv(const struct prov_bearer *bearer, void *cb_data,
 		[PROV_DATA]           = PDU_LEN_DATA,
 		[PROV_COMPLETE]       = PDU_LEN_COMPLETE,
 		[PROV_FAILED]         = PDU_LEN_FAILED,
+#ifdef CHAMP
+		[CHAMP_PROV_BLINK] = 1,
+#endif			
 	};
 
 	uint8_t type = buf->data[0];
@@ -356,12 +363,21 @@ static void prov_recv(const struct prov_bearer *bearer, void *cb_data,
 		return;
 	}
 
-	if ((type != PROV_FAILED && type != bt_mesh_prov_link.expect) ||
-	    !bt_mesh_prov_link.role->op[type]) {
+#ifdef CHAMP
+if ((((type != PROV_FAILED && type != bt_mesh_prov_link.expect) ||
+		!bt_mesh_prov_link.role->op[type])&&(type != CHAMP_PROV_BLINK))/*CHAMP*/) {
 		BT_WARN("Unexpected msg 0x%02x != 0x%02x", type, bt_mesh_prov_link.expect);
 		bt_mesh_prov_link.role->error(PROV_ERR_UNEXP_PDU);
 		return;
 	}
+#else
+if (((type != PROV_FAILED && type != bt_mesh_prov_link.expect) ||
+		!bt_mesh_prov_link.role->op[type])) {
+		BT_WARN("Unexpected msg 0x%02x != 0x%02x", type, bt_mesh_prov_link.expect);
+		bt_mesh_prov_link.role->error(PROV_ERR_UNEXP_PDU);
+		return;
+	}
+#endif
 
 	if (1 + op_len[type] != buf->len) {
 		BT_ERR("Invalid length %u for type 0x%02x", buf->len, type);

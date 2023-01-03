@@ -577,28 +577,32 @@ bool k_work_cancel_sync(struct k_work *work,
  *
  * @param workq_ptr pointer to the work queue structure
  */
+ uint32_t debugwork_queue_main[20]={0};
 static void work_queue_main(void *workq_ptr, void *p2, void *p3)
 {
 	struct k_work_q *queue = (struct k_work_q *)workq_ptr;
-
+debugwork_queue_main[0]++;
 	while (true) {
+debugwork_queue_main[1]++;
 		sys_snode_t *node;
 		struct k_work *work = NULL;
 		k_work_handler_t handler = NULL;
 		k_spinlock_key_t key = k_spin_lock(&lock);
 		bool yield;
-
+debugwork_queue_main[2]++;
 		/* Check for and prepare any new work. */
 		node = sys_slist_get(&queue->pending);
+debugwork_queue_main[3]++;
 		if (node != NULL) {
 			/* Mark that there's some work active that's
 			 * not on the pending list.
 			 */
+debugwork_queue_main[4]++;
 			flag_set(&queue->flags, K_WORK_QUEUE_BUSY_BIT);
 			work = CONTAINER_OF(node, struct k_work, node);
 			flag_set(&work->flags, K_WORK_RUNNING_BIT);
 			flag_clear(&work->flags, K_WORK_QUEUED_BIT);
-
+debugwork_queue_main[5]++;
 			/* Static code analysis tool can raise a false-positive violation
 			 * in the line below that 'work' is checked for null after being
 			 * dereferenced.
@@ -623,12 +627,15 @@ static void work_queue_main(void *workq_ptr, void *p2, void *p3)
 			 * here doesn't mean that the queue will allow new
 			 * submissions.
 			 */
+debugwork_queue_main[6]++;
 			(void)z_sched_wake_all(&queue->drainq, 1, NULL);
+debugwork_queue_main[7]++;
 		} else {
 			/* No work is available and no queue state requires
 			 * special handling.
 			 */
 			;
+                        debugwork_queue_main[8]++;
 		}
 
 		if (work == NULL) {
@@ -637,38 +644,42 @@ static void work_queue_main(void *workq_ptr, void *p2, void *p3)
 			 * stop.  Just go to sleep: when something happens the
 			 * work thread will be woken and we can check again.
 			 */
-
+debugwork_queue_main[9]++;
 			(void)z_sched_wait(&lock, key, &queue->notifyq,
 					   K_FOREVER, NULL);
+debugwork_queue_main[10]++;
 			continue;
 		}
-
+debugwork_queue_main[11]++;
 		k_spin_unlock(&lock, key);
 
 		__ASSERT_NO_MSG(handler != NULL);
+debugwork_queue_main[12]++;
 		handler(work);
-
+debugwork_queue_main[13]++;
 		/* Mark the work item as no longer running and deal
 		 * with any cancellation issued while it was running.
 		 * Clear the BUSY flag and optionally yield to prevent
 		 * starving other threads.
 		 */
 		key = k_spin_lock(&lock);
-
+debugwork_queue_main[14]++;
 		flag_clear(&work->flags, K_WORK_RUNNING_BIT);
 		if (flag_test(&work->flags, K_WORK_CANCELING_BIT)) {
 			finalize_cancel_locked(work);
 		}
-
+debugwork_queue_main[15]++;
 		flag_clear(&queue->flags, K_WORK_QUEUE_BUSY_BIT);
 		yield = !flag_test(&queue->flags, K_WORK_QUEUE_NO_YIELD_BIT);
 		k_spin_unlock(&lock, key);
-
+debugwork_queue_main[16]++;
 		/* Optionally yield to prevent the work queue from
 		 * starving other threads.
 		 */
 		if (yield) {
+debugwork_queue_main[17]++;
 			k_yield();
+debugwork_queue_main[18]++;
 		}
 	}
 }

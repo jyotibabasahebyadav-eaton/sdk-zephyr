@@ -13,7 +13,9 @@
 #include <sys/atomic.h>
 #include <sys/util.h>
 #include <sys/byteorder.h>
-
+#ifdef CHAMP
+#include <storage/flash_map.h>
+#endif
 #include <net/buf.h>
 #include <bluetooth/bluetooth.h>
 #include <bluetooth/conn.h>
@@ -29,13 +31,18 @@
 #include "rpl.h"
 #include "settings.h"
 
+#ifdef CHAMP
+#define FIXTURE_13L 13
+#define FIXTURE_11L 11
+#define FIXTURE_7L 7
+#endif
 /* Replay Protection List information for persistent storage. */
 struct rpl_val {
 	uint32_t seq:24,
 	      old_iv:1;
 };
 
-static struct bt_mesh_rpl replay_list[CONFIG_BT_MESH_CRPL];
+struct bt_mesh_rpl replay_list[CONFIG_BT_MESH_CRPL];
 static ATOMIC_DEFINE(store, CONFIG_BT_MESH_CRPL);
 
 static inline int rpl_idx(const struct bt_mesh_rpl *rpl)
@@ -277,6 +284,97 @@ static int rpl_set(const char *name, size_t len_rd,
 }
 
 BT_MESH_SETTINGS_DEFINE(rpl, "RPL", rpl_set);
+#ifdef CHAMP
+#define PATHSIZE 25                  
+char* p_path;               // Pointer to the path array
+static char path[PATHSIZE]; // Array where lumen string is stored
+char *p;                    // Pointer to flash storage
+char *p1;                   // Another copy of p. set at end
+char lumenType[2];          // Array of two spots to store the lumen value [ ][ ]
+char m;                     
+int spot = 0;               
+int lumVal;                 // temp storage for lumen value
+int lastLumVal = 99;             // Last lumen value at each iteration (probably redundant)
+int pathLen;                // Gets the actual length of the path string
+volatile uint32_t uniqueVal = 0;
+extern uint32_t getEpochTime();
+void store_champ_Lumen(uint8_t val)
+{
+        int err;
+        uniqueVal =getEpochTime();
+        snprintk(path, 19, "bt/chmp/Lum%u@%x", val,(uniqueVal&0xFFFF));
+        if((val == FIXTURE_7L) || (val==FIXTURE_11L) || (val==FIXTURE_13L))
+        {          
+          err = settings_save_one(path, &val, sizeof(val));
+          if (err) 
+          {
+                  BT_ERR("Failed to store Champ %s value", log_strdup(path));
+          }
+          else 
+          {
+                  BT_DBG("Stored Champ %s value", log_strdup(path));
+                   p_path = &path;
+          }
+        }
+        else
+        {      
+        }
+}
+void findChampLumen()
+{
+        p = FLASH_AREA_OFFSET(storage);
+        int cmp;
+        while(p <= 0x0007ffff){
+
+
+          if(*p == 'b')
+          {
+               
+               cmp = memcmp(p, "bt/chmp/Lum7", 12);
+               if(cmp == 0)
+               {
+                  if((p[12] == '@') &&(p[18] == 0x7))
+                  {
+                      lastLumVal = 7;
+                  }
+               }
+               else
+               {
+                  cmp = memcmp(p, "bt/chmp/Lum11", 13);
+                   if(cmp == 0)
+                   {
+                     if((p[13] == '@') &&(p[19] == 0xb))
+                     {
+                        lastLumVal = 11;
+                     } 
+                   }
+                   else
+                   {
+                      cmp = memcmp(p, "bt/chmp/Lum13", 13);
+                      if(cmp == 0)
+                      {
+                         if((p[13] == '@') &&(p[19] == 0xd))
+                         {
+                            lastLumVal = 13;
+                         }
+                      }
+                   }
+               }
+   
+          } // end of if *p == 'b'
+          p++;
+        } // end of while loop
+        p1 = p;
+}
+
+int getChampLumen()
+{
+    return lastLumVal;
+}
+
+
+
+#endif
 
 static void store_rpl(struct bt_mesh_rpl *entry)
 {

@@ -381,12 +381,13 @@ static inline bool anchor_update(uint32_t cc_value)
 
 	return false;
 }
-
+uint32_t debugsys_clock_timeout_handler=0;
 static void sys_clock_timeout_handler(int32_t chan,
 				      uint64_t expire_time,
 				      void *user_data)
 {
-	uint32_t cc_value = absolute_time_to_cc(expire_time);
+	debugsys_clock_timeout_handler++;
+        uint32_t cc_value = absolute_time_to_cc(expire_time);
 	uint64_t dticks = (expire_time - last_count) / CYC_PER_TICK;
 
 	last_count += dticks * CYC_PER_TICK;

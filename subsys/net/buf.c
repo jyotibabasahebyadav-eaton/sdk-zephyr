@@ -519,6 +519,7 @@ void net_buf_put(struct k_fifo *fifo, struct net_buf *buf)
 	k_fifo_put_list(fifo, buf, tail);
 }
 
+uint32_t debugnet_buf_unref[16]={0};
 #if defined(CONFIG_NET_BUF_LOG)
 void net_buf_unref_debug(struct net_buf *buf, const char *func, int line)
 #else
@@ -526,8 +527,9 @@ void net_buf_unref(struct net_buf *buf)
 #endif
 {
 	__ASSERT_NO_MSG(buf);
-
+debugnet_buf_unref[0]++;
 	while (buf) {
+debugnet_buf_unref[1]++;
 		struct net_buf *frags = buf->frags;
 		struct net_buf_pool *pool;
 
@@ -540,34 +542,41 @@ void net_buf_unref(struct net_buf *buf)
 #endif
 		NET_BUF_DBG("buf %p ref %u pool_id %u frags %p", buf, buf->ref,
 			    buf->pool_id, buf->frags);
-
+        debugnet_buf_unref[1]++;
 		if (--buf->ref > 0) {
+            debugnet_buf_unref[2]++;
 			return;
 		}
-
+        debugnet_buf_unref[3]++;
 		if (buf->__buf) {
+        debugnet_buf_unref[4]++;
 			data_unref(buf, buf->__buf);
 			buf->__buf = NULL;
 		}
-
+debugnet_buf_unref[5]++;
 		buf->data = NULL;
 		buf->frags = NULL;
-
+debugnet_buf_unref[6]++;
 		pool = net_buf_pool_get(buf->pool_id);
-
+debugnet_buf_unref[7]++;
 #if defined(CONFIG_NET_BUF_POOL_USAGE)
 		atomic_inc(&pool->avail_count);
 		__ASSERT_NO_MSG(atomic_get(&pool->avail_count) <= pool->buf_count);
 #endif
-
+debugnet_buf_unref[8]++;
 		if (pool->destroy) {
+debugnet_buf_unref[9]++;
 			pool->destroy(buf);
+debugnet_buf_unref[10]++;
 		} else {
+debugnet_buf_unref[11]++;
 			net_buf_destroy(buf);
+debugnet_buf_unref[12]++;
 		}
-
+debugnet_buf_unref[13]++;
 		buf = frags;
 	}
+debugnet_buf_unref[14]++;
 }
 
 struct net_buf *net_buf_ref(struct net_buf *buf)

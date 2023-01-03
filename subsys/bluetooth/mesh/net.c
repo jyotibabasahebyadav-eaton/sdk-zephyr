@@ -16,7 +16,7 @@
 #include <bluetooth/bluetooth.h>
 #include <bluetooth/conn.h>
 #include <bluetooth/mesh.h>
-
+#define CHAMP
 #define BT_DBG_ENABLED IS_ENABLED(CONFIG_BT_MESH_DEBUG_NET)
 #define LOG_MODULE_NAME bt_mesh_net
 #include "common/log.h"
@@ -805,20 +805,32 @@ int bt_mesh_net_decode(struct net_buf_simple *in, enum bt_mesh_net_if net_if,
 	return 0;
 }
 
+#ifdef CHAMP
+volatile uint32_t debugbt_mesh_net_recv[10] ={0};
+#endif
 void bt_mesh_net_recv(struct net_buf_simple *data, int8_t rssi,
 		      enum bt_mesh_net_if net_if)
 {
 	NET_BUF_SIMPLE_DEFINE(buf, BT_MESH_NET_MAX_PDU_LEN);
 	struct bt_mesh_net_rx rx = { .ctx.recv_rssi = rssi };
 	struct net_buf_simple_state state;
-
+	#ifdef CHAMP
+        //BT_INFO("N1");
+        debugbt_mesh_net_recv[0]++;
+	#endif	
 	BT_DBG("rssi %d net_if %u", rssi, net_if);
 
 	if (!bt_mesh_is_provisioned()) {
+	#ifdef CHAMP
+         debugbt_mesh_net_recv[1]++;
+	#endif	 
 		return;
 	}
 
 	if (bt_mesh_net_decode(data, net_if, &rx, &buf)) {
+	#ifdef CHAMP
+        debugbt_mesh_net_recv[2]++;
+	#endif
 		return;
 	}
 
@@ -830,10 +842,16 @@ void bt_mesh_net_recv(struct net_buf_simple *data, int8_t rssi,
 
 	if (IS_ENABLED(CONFIG_BT_MESH_GATT_PROXY) &&
 	    net_if == BT_MESH_NET_IF_PROXY) {
+		#ifdef CHAMP
+            debugbt_mesh_net_recv[3]++;
+		#endif	
 		bt_mesh_proxy_addr_add(data, rx.ctx.addr);
 
 		if (bt_mesh_gatt_proxy_get() == BT_MESH_GATT_PROXY_DISABLED &&
 		    !rx.local_match) {
+			#ifdef CHAMP
+                    debugbt_mesh_net_recv[4]++;
+			#endif		
 			BT_INFO("Proxy is disabled; ignoring message");
 			return;
 		}
@@ -846,11 +864,17 @@ void bt_mesh_net_recv(struct net_buf_simple *data, int8_t rssi,
 	 * credentials. Remove it from the message cache so that we accept
 	 * it again in the future.
 	 */
+	 #ifdef CHAMP
+        debugbt_mesh_net_recv[5]++;
+	 #endif	
 	if (bt_mesh_trans_recv(&buf, &rx) == -EAGAIN) {
 		BT_WARN("Removing rejected message from Network Message Cache");
 		msg_cache[rx.msg_cache_idx].src = BT_MESH_ADDR_UNASSIGNED;
 		/* Rewind the next index now that we're not using this entry */
 		msg_cache_next = rx.msg_cache_idx;
+		#ifdef CHAMP
+        debugbt_mesh_net_recv[6]++;
+		#endif
 	}
 
 	/* Relay if this was a group/virtual address, or if the destination
@@ -858,9 +882,15 @@ void bt_mesh_net_recv(struct net_buf_simple *data, int8_t rssi,
 	 */
 	if (!BT_MESH_ADDR_IS_UNICAST(rx.ctx.recv_dst) ||
 	    (!rx.local_match && !rx.friend_match)) {
+		#ifdef CHAMP
+            debugbt_mesh_net_recv[7]++;
+		#endif
 		net_buf_simple_restore(&buf, &state);
 		bt_mesh_net_relay(&buf, &rx);
 	}
+	#ifdef CHAMP
+        debugbt_mesh_net_recv[8]++;
+	#endif
 }
 
 static void ivu_refresh(struct k_work *work)

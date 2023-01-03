@@ -205,9 +205,10 @@ static inline void z_vrfy_k_str_out(char *c, size_t n)
  *
  * @return N/A
  */
-
+extern bool ApplicationUpAndRunning ;
 void printk(const char *fmt, ...)
 {
+   return;
 	va_list ap;
 
 	va_start(ap, fmt);

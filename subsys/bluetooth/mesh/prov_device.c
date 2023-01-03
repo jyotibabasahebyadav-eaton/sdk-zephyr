@@ -123,6 +123,59 @@ static void prov_invite(const uint8_t *data)
 
 	bt_mesh_prov_link.expect = PROV_START;
 }
+#ifdef CHAMP
+//Added callback function for the proprietary attention_on feature. The original attention feature works only
+//when the Provision_Invite state is present and can happen only once in the provisoning process.
+//but if that is to happen every time the blink button for Identify is clicked, then this proprietary
+//feature is used. The response is same as the Invite fucntion, the Software application may choose to use or
+//discard it.
+static void prov_blink(const uint8_t *data)
+{
+	PROV_BUF(buf, 12);
+
+	BT_DBG("Attention Duration: %u seconds", data[0]);
+	if (data[0]) {
+		bt_mesh_attention(NULL, data[0]);
+	}
+
+	bt_mesh_prov_link.conf_inputs[0] = data[0];
+
+	bt_mesh_prov_buf_init(&buf, PROV_CAPABILITIES);
+
+	/* Number of Elements supported */
+	net_buf_simple_add_u8(&buf, bt_mesh_elem_count());
+
+	/* Supported algorithms - FIPS P-256 Eliptic Curve */
+	net_buf_simple_add_be16(&buf, BIT(PROV_ALG_P256));
+
+	/* Public Key Type, Only "No OOB" Public Key is supported */
+	net_buf_simple_add_u8(&buf, PUB_KEY_NO_OOB);
+
+	/* Static OOB Type */
+	net_buf_simple_add_u8(&buf, bt_mesh_prov->static_val ? BIT(0) : 0x00);
+
+	/* Output OOB Size */
+	net_buf_simple_add_u8(&buf, bt_mesh_prov->output_size);
+
+	/* Output OOB Action */
+	net_buf_simple_add_be16(&buf, bt_mesh_prov->output_actions);
+
+	/* Input OOB Size */
+	net_buf_simple_add_u8(&buf, bt_mesh_prov->input_size);
+
+	/* Input OOB Action */
+	net_buf_simple_add_be16(&buf, bt_mesh_prov->input_actions);
+
+	memcpy(&bt_mesh_prov_link.conf_inputs[1], &buf.data[1], 11);
+
+	if (bt_mesh_prov_send(&buf, NULL)) {
+		BT_ERR("Failed to send capabilities");
+		return;
+	}
+        //Do not change the state of provisoning since this is proprietary information message to blink
+	//bt_mesh_prov_link.expect = PROV_START;
+}
+#endif
 
 static void prov_start(const uint8_t *data)
 {
@@ -601,6 +654,9 @@ static const struct bt_mesh_prov_role role_device = {
 		[PROV_CONFIRM] = prov_confirm,
 		[PROV_RANDOM] = prov_random,
 		[PROV_DATA] = prov_data,
+#ifdef CHAMP
+        [CHAMP_PROV_BLINK] = prov_blink,
+#endif
 	},
 };
 

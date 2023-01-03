@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-
+#define CHAMP
 #include <zephyr.h>
 #include <errno.h>
 #include <stdlib.h>
@@ -678,6 +678,11 @@ static int get_opcode(struct net_buf_simple *buf, uint32_t *opcode)
 	CODE_UNREACHABLE;
 }
 
+#ifdef CHAMP
+const struct bt_mesh_model_op *debugOp;
+uint32_t debugTestCommandsFlow[12] = {0};
+uint32_t debugOpAddress=0;
+#endif
 void bt_mesh_model_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *buf)
 {
 	struct bt_mesh_model *model;
@@ -685,36 +690,65 @@ void bt_mesh_model_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *buf)
 	uint32_t opcode;
 	int i;
 
+#ifdef CHAMP
+
+        //BT_CHAMP_MSG(" Crx ");
+        debugTestCommandsFlow[0]++;
+#endif		
 	BT_DBG("app_idx 0x%04x src 0x%04x dst 0x%04x", rx->ctx.app_idx,
 	       rx->ctx.addr, rx->ctx.recv_dst);
 	BT_DBG("len %u: %s", buf->len, bt_hex(buf->data, buf->len));
-
+	#ifdef CHAMP
+        debugTestCommandsFlow[1]++;
+	#endif	
 	if (get_opcode(buf, &opcode) < 0) {
 		BT_WARN("Unable to decode OpCode");
+		#ifdef CHAMP
+                debugTestCommandsFlow[2]++;
+		#endif		
 		return;
 	}
 
 	BT_DBG("OpCode 0x%08x", opcode);
-
+	#ifdef CHAMP
+        debugTestCommandsFlow[3]++;
+	#endif	
 	for (i = 0; i < dev_comp->elem_count; i++) {
 		struct net_buf_simple_state state;
-
+        #ifdef CHAMP
+         debugTestCommandsFlow[4]++;
+		#endif		
+          #ifdef CHAMP
+          debugTestCommandsFlow[5]++;
+		  #endif
 		op = find_op(&dev_comp->elem[i], opcode, &model);
 		if (!op) {
 			BT_DBG("No OpCode 0x%08x for elem %d", opcode, i);
+			#ifdef CHAMP
+            debugTestCommandsFlow[6]++;
+			#endif			
 			continue;
 		}
 
 		if (!bt_mesh_model_has_key(model, rx->ctx.app_idx)) {
+		#ifdef CHAMP
+                debugTestCommandsFlow[7]++;
+		#endif		
 			continue;
 		}
 
 		if (!model_has_dst(model, rx->ctx.recv_dst)) {
+		#ifdef CHAMP
+        debugTestCommandsFlow[8]++;
+		#endif
 			continue;
 		}
 
 		if ((op->len >= 0) && (buf->len < (size_t)op->len)) {
 			BT_ERR("Too short message for OpCode 0x%08x", opcode);
+		#ifdef CHAMP
+        debugTestCommandsFlow[9]++;
+		#endif
 			continue;
 		} else if ((op->len < 0) && (buf->len != (size_t)(-op->len))) {
 			BT_ERR("Invalid message size for OpCode 0x%08x",
@@ -727,7 +761,15 @@ void bt_mesh_model_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *buf)
 		 * receive the message.
 		 */
 		net_buf_simple_save(buf, &state);
+		#ifdef CHAMP
+        debugTestCommandsFlow[10]++;
+        debugOp = op;
+        //BT_CHAMP_MSG("ORx ");
+		#endif		
 		(void)op->func(model, &rx->ctx, buf);
+			#ifdef CHAMP
+            debugTestCommandsFlow[11]++;
+			#endif
 		net_buf_simple_restore(buf, &state);
 	}
 

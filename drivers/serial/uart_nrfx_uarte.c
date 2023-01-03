@@ -420,7 +420,7 @@ static int baudrate_set(const struct device *dev, uint32_t baudrate)
 	return 0;
 }
 
-static int uarte_nrfx_configure(const struct device *dev,
+int uarte_nrfx_configure(const struct device *dev,
 				const struct uart_config *cfg)
 {
 	nrf_uarte_config_t uarte_cfg;
@@ -835,16 +835,21 @@ static int uarte_nrfx_tx_abort(const struct device *dev)
 
 	return 0;
 }
-
+uint8_t debugdev0 =0;
 static void user_callback(const struct device *dev, struct uart_event *evt)
 {
 	struct uarte_nrfx_data *data = get_dev_data(dev);
-
+        if(dev->name[5]=='0')
+        {
+              debugdev0++;
+        }
 	if (data->async->user_callback) {
 		data->async->user_callback(dev, evt, data->async->user_data);
 	}
 }
 
+uint32_t debugNotify =0;
+uint32_t delayForUart = 0;
 static void notify_uart_rx_rdy(const struct device *dev, size_t len)
 {
 	struct uarte_nrfx_data *data = get_dev_data(dev);
@@ -854,7 +859,14 @@ static void notify_uart_rx_rdy(const struct device *dev, size_t len)
 		.data.rx.len = len,
 		.data.rx.offset = data->async->rx_offset
 	};
-
+        if(dev->name[5]=='0')
+        {
+              
+           for(delayForUart = 0; delayForUart <100000 ;delayForUart++)
+           { 
+                debugNotify++;
+           }
+        }
 	user_callback(dev, &evt);
 }
 
@@ -982,7 +994,7 @@ static int uarte_nrfx_rx_buf_rsp(const struct device *dev, uint8_t *buf,
 	return err;
 }
 
-static int uarte_nrfx_callback_set(const struct device *dev,
+int uarte_nrfx_callback_set(const struct device *dev,
 				   uart_callback_t callback,
 				   void *user_data)
 {
@@ -1033,31 +1045,37 @@ static void tx_timeout(struct k_timer *timer)
  * If rx_timeout_left is less than rx_timeout_slab it means that receiving has
  * timed out and we should tell user about that.
  */
+ uint32_t debugrxTimeoutctr[20]={0};
 static void rx_timeout(struct k_timer *timer)
 {
 	struct uarte_nrfx_data *data = k_timer_user_data_get(timer);
 	const struct device *dev = data->dev;
 	const struct uarte_nrfx_config *cfg = get_dev_config(dev);
 	uint32_t read;
-
+        debugrxTimeoutctr[0]++;
 	if (data->async->is_in_irq) {
+        debugrxTimeoutctr[1]++;
 		return;
 	}
 
 	/* Disable ENDRX ISR, in case ENDRX event is generated, it will be
 	 * handled after rx_timeout routine is complete.
 	 */
+         debugrxTimeoutctr[2]++;
 	nrf_uarte_int_disable(get_uarte_instance(dev),
 			      NRF_UARTE_INT_ENDRX_MASK);
-
+        debugrxTimeoutctr[3]++;
 	if (hw_rx_counting_enabled(data)) {
+        debugrxTimeoutctr[4]++;
 		read = nrfx_timer_capture(&cfg->timer, 0);
 	} else {
+        debugrxTimeoutctr[5]++;
 		read = data->async->rx_cnt.cnt;
 	}
 
 	/* Check if data was received since last function call */
 	if (read != data->async->rx_total_byte_cnt) {
+        debugrxTimeoutctr[6]++;
 		data->async->rx_total_byte_cnt = read;
 		data->async->rx_timeout_left = data->async->rx_timeout;
 	}
@@ -1068,9 +1086,10 @@ static void rx_timeout(struct k_timer *timer)
 	 */
 	int32_t len = data->async->rx_total_byte_cnt
 		    - data->async->rx_total_user_byte_cnt;
-
+        debugrxTimeoutctr[7]++;
 	if (!hw_rx_counting_enabled(data) &&
 	    (len < 0)) {
+            debugrxTimeoutctr[8]++;
 		/* Prevent too low value of rx_cnt.cnt which may occur due to
 		 * latencies in handling of the RXRDY interrupt.
 		 * At this point, the number of received bytes is at least
@@ -1087,21 +1106,33 @@ static void rx_timeout(struct k_timer *timer)
 	 * until the ENDRX event gets a chance to be handled.
 	 */
 	bool clipped = false;
-
+        debugrxTimeoutctr[9]++;
 	if (len + data->async->rx_offset > data->async->rx_buf_len) {
+        debugrxTimeoutctr[10]++;
 		len = data->async->rx_buf_len - data->async->rx_offset;
 		clipped = true;
 	}
 
 	if (len > 0) {
+        debugrxTimeoutctr[11]++;
 		if (clipped ||
 			(data->async->rx_timeout_left
 				< data->async->rx_timeout_slab)) {
+                                debugrxTimeoutctr[12]++;
+                                if(dev->name[5]==0x30)
+                                {
+                                   debugrxTimeoutctr[13]++;
+                                }
+                                else if(dev->name[5]==0x31)
+                                {
+                                 debugrxTimeoutctr[19]++;
+                                }
 			/* rx_timeout us elapsed since last receiving */
 			notify_uart_rx_rdy(dev, len);
 			data->async->rx_offset += len;
 			data->async->rx_total_user_byte_cnt += len;
 		} else {
+                        debugrxTimeoutctr[14]++;
 			data->async->rx_timeout_left -=
 				data->async->rx_timeout_slab;
 		}
@@ -1109,11 +1140,13 @@ static void rx_timeout(struct k_timer *timer)
 		/* If theres nothing left to report until the buffers are
 		 * switched then the timer can be stopped
 		 */
+                 debugrxTimeoutctr[15]++;
 		if (clipped) {
+                debugrxTimeoutctr[16]++;
 			k_timer_stop(&data->async->rx_timeout_timer);
 		}
 	}
-
+        debugrxTimeoutctr[17]++;
 	nrf_uarte_int_enable(get_uarte_instance(dev),
 			     NRF_UARTE_INT_ENDRX_MASK);
 
@@ -1153,6 +1186,7 @@ static void rxstarted_isr(const struct device *dev)
 	}
 }
 
+uint8_t debug_endrx_isr=0;
 static void endrx_isr(const struct device *dev)
 {
 	struct uarte_nrfx_data *data = get_dev_data(dev);
@@ -1190,6 +1224,10 @@ static void endrx_isr(const struct device *dev)
 
 	/* Only send the RX_RDY event if there is something to send */
 	if (rx_len > 0) {
+          if(dev->name[5]=='0')
+          {
+             debug_endrx_isr++;
+          }
 		notify_uart_rx_rdy(dev, rx_len);
 	}
 
@@ -1430,11 +1468,20 @@ static void txstopped_isr(const struct device *dev)
 	user_callback(dev, &evt);
 }
 
+uint8_t debugUART1=0;
+uint8_t debugUART0=0;
 static void uarte_nrfx_isr_async(const struct device *dev)
 {
 	NRF_UARTE_Type *uarte = get_uarte_instance(dev);
 	struct uarte_nrfx_data *data = get_dev_data(dev);
-
+if(dev->name[5]=='1')
+{
+debugUART1++;
+}
+if(dev->name[5]=='0')
+{
+debugUART0++;
+}
 	if (!hw_rx_counting_enabled(data)
 	    && nrf_uarte_event_check(uarte, NRF_UARTE_EVENT_RXDRDY)) {
 		nrf_uarte_event_clear(uarte, NRF_UARTE_EVENT_RXDRDY);
