@@ -770,7 +770,7 @@ static bool update_keys_check(struct bt_smp *smp, struct bt_keys *keys)
 	if (!IS_ENABLED(CONFIG_BT_SMP_ALLOW_UNAUTH_OVERWRITE) &&
 	    (!(keys->flags & BT_KEYS_AUTHENTICATED)
 	     && smp->method == JUST_WORKS)) {
-		return false;
+		//return false; // Removed for CHMAP
 	}
 
 	return true;

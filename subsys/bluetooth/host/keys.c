@@ -325,13 +325,13 @@ int bt_keys_store(struct bt_keys *keys)
 		bt_settings_encode_key(key, sizeof(key), "keys", &keys->addr,
 				       NULL);
 	}
-
+/* //RRD
 	err = settings_save_one(key, keys->storage_start, BT_KEYS_STORAGE_LEN);
 	if (err) {
 		BT_ERR("Failed to save keys (err %d)", err);
 		return err;
 	}
-
+*///removed for champ
 	BT_DBG("Stored keys for %s (%s)", bt_addr_le_str(&keys->addr),
 	       log_strdup(key));
 

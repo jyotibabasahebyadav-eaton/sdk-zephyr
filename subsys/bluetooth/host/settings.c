@@ -299,7 +299,7 @@ static int commit(void)
 		/* Set Bluetooth Name */
 		bt_set_name((char*)&strRandomEncryptedString);
 #endif
-	bt_set_name((char*)"Champ MVP2 Test 1V23");
+	bt_set_name((char*)"Champ MVP2 Test 94Vxx");
 
 	}
 #endif

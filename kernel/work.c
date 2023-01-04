@@ -578,6 +578,7 @@ bool k_work_cancel_sync(struct k_work *work,
  * @param workq_ptr pointer to the work queue structure
  */
  uint32_t debugwork_queue_main[20]={0};
+ struct k_work *debugwork = NULL;
 static void work_queue_main(void *workq_ptr, void *p2, void *p3)
 {
 	struct k_work_q *queue = (struct k_work_q *)workq_ptr;
@@ -655,6 +656,7 @@ debugwork_queue_main[11]++;
 
 		__ASSERT_NO_MSG(handler != NULL);
 debugwork_queue_main[12]++;
+       debugwork=work;
 		handler(work);
 debugwork_queue_main[13]++;
 		/* Mark the work item as no longer running and deal

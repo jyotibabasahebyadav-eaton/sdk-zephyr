@@ -153,7 +153,7 @@ static ssize_t prov_ccc_write(struct bt_conn *conn,
 }
 
 /* Mesh Provisioning Service Declaration */
-static struct _bt_gatt_ccc prov_ccc =
+struct _bt_gatt_ccc prov_ccc =
 	BT_GATT_CCC_INITIALIZER(prov_ccc_changed, prov_ccc_write, NULL);
 
 static struct bt_gatt_attr prov_attrs[] = {

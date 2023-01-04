@@ -458,7 +458,7 @@ static ssize_t sc_ccc_cfg_write(struct bt_conn *conn,
 	return sizeof(value);
 }
 
-static struct _bt_gatt_ccc sc_ccc = BT_GATT_CCC_INITIALIZER(NULL,
+struct _bt_gatt_ccc sc_ccc = BT_GATT_CCC_INITIALIZER(NULL,
 							    sc_ccc_cfg_write,
 							    NULL);
 
@@ -1718,7 +1718,12 @@ static void gatt_ccc_changed(const struct bt_gatt_attr *attr,
 		}
 	}
 }
-
+extern struct _bt_gatt_ccc sc_ccc;
+extern struct _bt_gatt_ccc prov_ccc;
+extern struct _bt_gatt_ccc proxy_ccc;
+uint32_t debugGattConnectionSCC = 0;
+//uint8_t debugGattConnectionOther=0;
+uint32_t debugGattProxyProv=0;
 ssize_t bt_gatt_attr_write_ccc(struct bt_conn *conn,
 			       const struct bt_gatt_attr *attr, const void *buf,
 			       uint16_t len, uint16_t offset, uint8_t flags)
@@ -1762,20 +1767,31 @@ ssize_t bt_gatt_attr_write_ccc(struct bt_conn *conn,
 		cfg->id = conn->id;
 	}
 
-	/* Confirm write if cfg is managed by application */
-	if (ccc->cfg_write) {
-		ssize_t write = ccc->cfg_write(conn, attr, value);
+   if(attr->user_data == &sc_ccc) //RRD
+	{
+		debugGattConnectionSCC++;
+	}
+	else if((attr->user_data == &prov_ccc) || (attr->user_data == &proxy_ccc))
+	{
+	   debugGattProxyProv++; 
+  	/* Confirm write if cfg is managed by application */
+		if (ccc->cfg_write) {
+			ssize_t write = ccc->cfg_write(conn, attr, value);
 
-		if (write < 0) {
-			return write;
-		}
+			if (write < 0) {
+				return write;
+			}
 
-		/* Accept size=1 for backwards compatibility */
-		if (write != sizeof(value) && write != 1) {
-			return BT_GATT_ERR(BT_ATT_ERR_UNLIKELY);
+			/* Accept size=1 for backwards compatibility */
+			if (write != sizeof(value) && write != 1) {
+				return BT_GATT_ERR(BT_ATT_ERR_UNLIKELY);
+			}
 		}
 	}
-
+	else
+	{
+		//debugGattConnectionOther++;
+	}
 	value_changed = cfg->value != value;
 	cfg->value = value;
 
